@@ -1,0 +1,25 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Listen for Xdebug (Docker)",
+            "type": "php",
+            "request": "launch",
+            "port": 9003,
+            "pathMappings": {
+                "/var/www": "${workspaceFolder}"
+            },
+            "hostname": "0.0.0.0",
+            "ignore": ["**/vendor/**"]
+        },
+        {
+            "name": "Artisan Command",
+            "type": "php",
+            "request": "launch",
+            "port": 9003,
+            "pathMappings": {
+                "/var/www": "${workspaceFolder}"
+            }
+        }
+    ]
+}

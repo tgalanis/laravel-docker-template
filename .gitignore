@@ -1,0 +1,23 @@
+# Laravel
+/vendor/
+/node_modules/
+.env
+.env.backup
+.env.production
+storage/*.key
+public/hot
+public/storage
+/.phpunit.cache
+/bootstrap/cache/*
+!/bootstrap/cache/.gitkeep
+
+# Docker
+docker-compose.override.yml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+*.iml

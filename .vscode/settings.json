@@ -1,0 +1,23 @@
+{
+    "php.validate.executablePath": "/usr/local/bin/php",
+    "intelephense.environment.phpVersion": "8.3.0",
+    "intelephense.files.exclude": [
+        "**/vendor/**"
+    ],
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "bmewburn.vscode-intelephense-client",
+    "[blade]": {
+        "editor.defaultFormatter": "shufo.vscode-blade-formatter"
+    },
+    "[json]": {
+        "editor.defaultFormatter": "vscode.json-language-features"
+    },
+    "files.associations": {
+        "*.blade.php": "blade"
+    },
+    "emmet.includeLanguages": {
+        "blade": "html"
+    },
+    "docker.defaultRegistryPath": "",
+    "task.allowAutomaticTasks": "on"
+}
