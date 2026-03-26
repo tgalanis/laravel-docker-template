@@ -1,58 +1,327 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Laravel Docker Template
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A ready-to-use Laravel development environment running inside Docker. Everything you need is pre-installed — PHP, Composer, Node, NVM, and the Laravel Installer — so your local machine stays clean and every project is isolated.
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## What's Inside
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+| Service | Technology | Purpose |
+|---------|-----------|---------|
+| App | PHP 8.3-FPM | Runs your Laravel application |
+| Web server | Nginx | Serves HTTP requests, forwards PHP to the app |
+| Database | MySQL 8 | Stores your application data |
+| Cache / Queue | Redis | Sessions, cache, and queue jobs |
+| Reverse proxy | Traefik | Routes `yourapp.localhost` to the right container |
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+### Tools available inside the container
+- **PHP 8.3** with common extensions (pdo, mbstring, redis, gd, bcmath, zip)
+- **Composer** — PHP package manager
+- **Laravel Installer** — create new Laravel projects with `laravel new`
+- **Node LTS + npm + npx** — for compiling frontend assets
+- **NVM** — switch Node versions if needed
+- **Xdebug** — step-through debugging with VS Code
 
-## Learning Laravel
+---
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## Requirements
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+You need the following installed on your machine (local or server) before using this template.
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+### 1. Docker & Docker Compose
+Docker runs all the containers. Docker Compose coordinates them together.
 
-## Agentic Development
+- **Install:** https://docs.docker.com/get-docker/
+- Verify it works: `docker --version && docker compose version`
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+### 2. Traefik (reverse proxy)
+Traefik is a router that sits in front of your containers. It reads labels on your containers and automatically routes traffic to the right place — so `http://laravel.localhost` goes to your Laravel app without you having to manage ports manually.
+
+> Think of Traefik like a reception desk: requests come in, and Traefik directs them to the right container.
+
+Traefik runs as its own Docker container and must be started **once** on your machine. All your Laravel projects then connect to it automatically.
+
+**Set up Traefik** (only needs to be done once per machine):
 
 ```bash
-composer require laravel/boost --dev
+mkdir -p ~/projects/traefik && cd ~/projects/traefik
 
-php artisan boost:install
+# Create the Traefik config file
+cat > traefik.yml << 'EOF'
+log:
+  level: DEBUG
+
+api:
+  dashboard: true
+  insecure: true
+
+entryPoints:
+  web:
+    address: ":80"
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+EOF
+
+# Create the docker-compose file
+cat > docker-compose.yml << 'EOF'
+services:
+  traefik:
+    image: traefik:latest
+    container_name: traefik
+    restart: always
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./traefik.yml:/etc/traefik/traefik.yml
+    command:
+      - "--api.dashboard=true"
+EOF
+
+docker compose up -d
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+Traefik dashboard will be available at `http://localhost:8080`.
 
-## Contributing
+### 3. just
+`just` is a command runner (a modern alternative to `make`) used to run common project tasks like starting containers, running migrations, and opening a shell.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+```bash
+# Install on Linux
+curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to ~/.local/bin
+```
 
-## Code of Conduct
+Verify: `just --version`
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+---
 
-## Security Vulnerabilities
+## Starting a New Project
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+### Step 1 — Clone the template
+
+```bash
+git clone https://github.com/tgalanis/laravel-docker-template ~/code/my-project
+cd ~/code/my-project
+```
+
+### Step 2 — Configure your environment
+
+```bash
+cp .env.example .env
+```
+
+Open `.env` and update these values for your project:
+
+```env
+APP_NAME=MyProject
+APP_DOMAIN=myproject.localhost   # the URL you'll use in your browser
+DB_DATABASE=myproject
+DB_USERNAME=myproject
+DB_PASSWORD=secret
+```
+
+### Step 3 — Run the setup command
+
+```bash
+just init
+```
+
+This single command will:
+1. Build the Docker containers (installs PHP, Node, Composer, etc.)
+2. Install a fresh Laravel application
+3. Generate your app key
+4. Run the default database migrations
+
+### Step 4 — Open your app
+
+Visit `http://myproject.localhost` (or whatever you set `APP_DOMAIN` to) in your browser.
+
+> **Note:** If the domain doesn't resolve, add it to your `/etc/hosts` file:
+> ```
+> 127.0.0.1   myproject.localhost
+> ```
+
+---
+
+## Daily Development Commands
+
+Run these from your project directory on your **host machine** (not inside the container).
+
+```bash
+just up              # start all containers
+just down            # stop all containers
+just build           # rebuild containers (after Dockerfile changes)
+just logs            # tail all container logs
+just logs-service nginx   # tail a specific service
+```
+
+### Working inside the container
+
+```bash
+just shell           # open a bash shell in the app container
+just shell-root      # open a shell as root (for admin tasks)
+```
+
+Once inside the container you have full access to:
+```bash
+php artisan make:model Post -mcr   # create model, migration, controller
+npm install && npm run dev          # install and compile frontend assets
+composer require spatie/laravel-permission
+laravel new               # create a new Laravel project
+nvm install 20            # install a different Node version
+```
+
+### Artisan shortcuts
+
+```bash
+just artisan migrate
+just artisan "migrate --seed"
+just artisan "make:controller PostController"
+just fresh               # migrate:fresh --seed (wipes and rebuilds the database)
+just worker              # start the queue worker
+just clear               # clear all Laravel caches
+```
+
+### Composer
+
+```bash
+just composer install
+just composer "require spatie/laravel-permission"
+just composer "remove some/package"
+```
+
+### Database
+
+```bash
+just db                  # opens a MySQL shell inside the db container
+```
+
+---
+
+## Testing
+
+```bash
+just test                        # run the full test suite
+just test-coverage               # run tests with a coverage report
+just test-filter "UserTest"      # run a specific test class or method
+```
+
+---
+
+## Debugging with VS Code
+
+This template includes full Xdebug support. You can pause execution and step through your code line by line.
+
+### Setup (one time)
+
+1. Install the **PHP Debug** extension in VS Code (`xdebug.php-debug`)
+2. VS Code will also suggest all recommended extensions when you open the project — click **Install All**
+
+### Starting a debug session
+
+```bash
+just debug-on        # enables Xdebug and restarts the app container
+```
+
+Then in VS Code:
+1. Open the **Run and Debug** panel (Ctrl+Shift+D)
+2. Select **Listen for Xdebug (Docker)**
+3. Press **F5** to start listening
+4. Set a breakpoint by clicking the gutter next to a line number
+5. Visit your app in the browser — VS Code will pause at your breakpoint
+
+```bash
+just debug-off       # disable Xdebug when done (keeps things fast)
+```
+
+> Xdebug is **off by default** so there is no performance impact during normal development.
+
+---
+
+## VS Code Tasks
+
+Common commands are wired into VS Code's task runner. Press `Ctrl+Shift+P` → **Tasks: Run Task** to access:
+
+- `just up` — start containers
+- `just down` — stop containers
+- `just logs` — tail logs
+- `just test` — run tests
+- `just fresh` — reset the database
+
+---
+
+## Project Structure
+
+```
+my-project/
+├── app/                    # Laravel application code
+├── docker/
+│   └── php/
+│       ├── Dockerfile      # builds the app container
+│       └── xdebug.ini      # Xdebug configuration
+├── nginx/
+│   └── conf.d/
+│       └── default.conf    # Nginx site config
+├── .vscode/
+│   ├── extensions.json     # recommended VS Code extensions
+│   ├── launch.json         # Xdebug debug configuration
+│   ├── settings.json       # workspace settings
+│   └── tasks.json          # VS Code task shortcuts
+├── docker-compose.yml      # defines all containers and how they connect
+├── justfile                # all project commands
+└── .env                    # your local environment config (never commit this)
+```
+
+---
+
+## How It All Fits Together
+
+```
+Your Browser
+     │
+     ▼
+  Traefik (port 80)
+  "laravel.localhost? → nginx container"
+     │
+     ▼
+  Nginx container
+  "*.php? → app container:9000"
+  "static files? → serve directly"
+     │
+     ▼
+  App container (PHP-FPM)
+  runs your Laravel code
+     │         │
+     ▼         ▼
+  MySQL      Redis
+  (data)   (cache/queues)
+```
+
+---
+
+## Common Problems
+
+**`laravel.localhost` doesn't open in the browser**
+- Make sure Traefik is running: `docker ps | grep traefik`
+- Add `127.0.0.1 laravel.localhost` to `/etc/hosts`
+
+**Permission errors on files**
+- The container runs as your host user UID, so this should be rare
+- If it happens: `docker exec -u root app chown -R 1000:1000 /var/www`
+
+**Port 80 already in use**
+- Something else is using port 80 (Apache, another Nginx, etc.)
+- Find it: `sudo lsof -i :80` and stop that service
+
+**Changes to the Dockerfile not taking effect**
+- You need to rebuild: `just build`
+
+---
 
 ## License
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+MIT
